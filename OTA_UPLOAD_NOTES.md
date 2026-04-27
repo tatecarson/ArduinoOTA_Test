@@ -163,6 +163,33 @@ ArduinoOTA.begin(WiFi.localIP(), "ArduinoOTA_Test", "password", InternalStorage)
 
 For a real project, change `"password"` to a better password and upload once over USB or over the working `curl` OTA method.
 
+## Multi-Board UDP Sync
+
+When two or more boards run this sketch on the same WiFi, they coordinate over UDP broadcast on port `4210`. No configuration: every board listens, every board broadcasts.
+
+What syncs:
+
+- **Message** — submitting the form on any board updates all of them.
+- **Heartbeat** — each board sends one packet per second (presence + clock).
+- **Events** — `broadcastEvent("FLASH")` from any board calls `onSyncEvent()` on the others. The hook is in the sketch, ready for installation cues.
+- **Peers** — the web page shows other live boards by node id and IP.
+
+Packet format is plain text, one line:
+
+```text
+INST1 <type> <originId> <seq> <payload>
+```
+
+Types are `MSG`, `EVT`, `HB`. Receivers dedupe by `(originId, seq)` and never rebroadcast, so there are no echo storms.
+
+Snoop traffic from a laptop on the same LAN:
+
+```bash
+nc -ul 4210
+```
+
+You should see one `INST1 HB ...` line per board per second.
+
 ## Troubleshooting
 
 If `curl` cannot connect:
