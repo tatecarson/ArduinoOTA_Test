@@ -111,6 +111,36 @@ OK
 
 The board may reset or pause briefly while applying the update.
 
+## Change The LED Matrix Message Over WiFi
+
+The sketch also starts a small web server on port `80`. Once Serial Monitor shows `OTA ready`, you can change the LED matrix readout from a browser:
+
+```text
+http://192.168.0.102/msg?text=TATE
+```
+
+Replace `192.168.0.102` with the IP address printed by the board.
+
+You can also send the message from Terminal:
+
+```bash
+curl "http://192.168.0.102/msg?text=HI"
+```
+
+Or open the local controller page in this folder:
+
+```text
+led_message_controller.html
+```
+
+Enter the board IP address and a short message, then click "Send To Matrix". The page sends the message to the Arduino with:
+
+```text
+http://BOARD_IP/msg?text=TEXT
+```
+
+The matrix is only 12 columns wide, so the sketch uses a compact font and accepts up to 4 letters or numbers. Lowercase letters are converted to uppercase.
+
 ## Password
 
 The OTA username is:
@@ -155,4 +185,3 @@ If Arduino IDE says no monitor is available for a network port:
 - That is expected.
 - Network/OTA ports are for upload only.
 - Use the USB port for Serial Monitor.
-

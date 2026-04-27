@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arduino LED Matrix Controller</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    main {
+      width: min(420px, calc(100vw - 32px));
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    input,
+    button {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 44px;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    input {
+      border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+      padding: 8px 10px;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    button {
+      margin-top: 16px;
+      border: 0;
+      background: #16704a;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .status {
+      min-height: 24px;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    .hint {
+      margin-top: 18px;
+      font-size: 13px;
+      line-height: 1.4;
+      opacity: 0.72;
+    }
+
+    iframe {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Arduino LED Matrix</h1>
+
+    <form id="message-form">
+      <label for="ip">Arduino IP address</label>
+      <input id="ip" name="ip" inputmode="decimal" autocomplete="off" value="192.168.0.102">
+
+      <label for="text">Message</label>
+      <input id="text" name="text" autocomplete="off" maxlength="4" value="TATE">
+
+      <button type="submit">Send To Matrix</button>
+    </form>
+
+    <div class="status" id="status" role="status"></div>
+    <p class="hint">Use up to 4 letters or numbers. Keep this computer on the same WiFi network as the Arduino.</p>
+  </main>
+
+  <iframe id="sender" title="Arduino request sender"></iframe>
+
+  <script>
+    const form = document.querySelector("#message-form");
+    const ipInput = document.querySelector("#ip");
+    const textInput = document.querySelector("#text");
+    const status = document.querySelector("#status");
+    const sender = document.querySelector("#sender");
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const ip = ipInput.value.trim();
+      const text = textInput.value.trim().slice(0, 4);
+
+      if (!ip || !text) {
+        status.textContent = "Enter an IP address and a short message.";
+        return;
+      }
+
+      const url = `http://${ip}/msg?text=${encodeURIComponent(text)}`;
+      sender.src = url;
+      status.textContent = `Sent "${text.toUpperCase()}" to ${ip}`;
+    });
+  </script>
+</body>
+</html>
