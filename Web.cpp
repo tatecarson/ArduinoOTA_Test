@@ -89,6 +89,16 @@ void webPoll() {
       Serial.print("Matrix message changed to: ");
       Serial.println(currentMessage);
       broadcastMessage(currentMessage);
+    } else if (path == "/peers.json" || path.startsWith("/peers.json?")) {
+      client.println("HTTP/1.1 200 OK");
+      client.println("Connection: close");
+      client.println("Content-Type: application/json");
+      client.println("Access-Control-Allow-Origin: *");
+      client.println();
+      syncWritePeersJson(client);
+      delay(5);
+      client.stop();
+      return;
     }
   }
 
