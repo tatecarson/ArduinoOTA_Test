@@ -12,3 +12,4 @@ void broadcastEvent(const char* name);
 unsigned long syncMillis();
 uint8_t syncNodeId();
 void syncWritePeersHtml(WiFiClient& client);
+void syncWritePeersJson(WiFiClient& client);

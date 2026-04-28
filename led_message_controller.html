@@ -78,6 +78,53 @@
       opacity: 0.72;
     }
 
+    .peers {
+      margin-top: 24px;
+      padding: 12px 14px;
+      border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+      border-radius: 8px;
+    }
+
+    .peers h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .peers .self {
+      font-size: 13px;
+      opacity: 0.8;
+      margin: 0 0 8px;
+    }
+
+    .peers ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+    }
+
+    .peers li {
+      margin: 2px 0;
+    }
+
+    .peers .empty {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .dot.stale {
+      background: #d97706;
+    }
+
     iframe {
       display: none;
     }
@@ -99,6 +146,13 @@
 
     <div class="status" id="status" role="status"></div>
     <p class="hint">Use up to 4 letters or numbers. Keep this computer on the same WiFi network as the Arduino.</p>
+
+    <section class="peers" id="peers">
+      <h2>Network</h2>
+      <p class="self" id="self">Enter an Arduino IP and submit to see the cluster.</p>
+      <ul id="peer-list"></ul>
+      <p class="empty" id="peer-empty" hidden>No other boards seen yet.</p>
+    </section>
   </main>
 
   <iframe id="sender" title="Arduino request sender"></iframe>
@@ -109,6 +163,12 @@
     const textInput = document.querySelector("#text");
     const status = document.querySelector("#status");
     const sender = document.querySelector("#sender");
+    const selfEl = document.querySelector("#self");
+    const peerList = document.querySelector("#peer-list");
+    const peerEmpty = document.querySelector("#peer-empty");
+
+    let pollTimer = null;
+    let lastIp = "";
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -124,7 +184,64 @@
       const url = `http://${ip}/msg?text=${encodeURIComponent(text)}`;
       sender.src = url;
       status.textContent = `Sent "${text.toUpperCase()}" to ${ip}`;
+      startPolling(ip);
     });
+
+    ipInput.addEventListener("change", () => {
+      const ip = ipInput.value.trim();
+      if (ip) startPolling(ip);
+    });
+
+    function startPolling(ip) {
+      if (ip === lastIp && pollTimer) return;
+      lastIp = ip;
+      if (pollTimer) clearInterval(pollTimer);
+      refreshPeers(ip);
+      pollTimer = setInterval(() => refreshPeers(ip), 2000);
+    }
+
+    async function refreshPeers(ip) {
+      try {
+        const res = await fetch(`http://${ip}/peers.json`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderPeers(data);
+      } catch (err) {
+        selfEl.textContent = `Could not reach ${ip}: ${err.message}`;
+        peerList.innerHTML = "";
+        peerEmpty.hidden = true;
+      }
+    }
+
+    function renderPeers(data) {
+      const self = data.self || {};
+      selfEl.innerHTML =
+        `<span class="dot"></span>This board: id <strong>${self.id}</strong> @ ${self.ip} (uptime ${formatMs(self.uptimeMs)})`;
+
+      const peers = Array.isArray(data.peers) ? data.peers : [];
+      peerList.innerHTML = "";
+      peerEmpty.hidden = peers.length > 0;
+
+      for (const p of peers) {
+        const li = document.createElement("li");
+        const stale = p.lastSeenMs > 1500;
+        li.innerHTML =
+          `<span class="dot${stale ? " stale" : ""}"></span>` +
+          `id <strong>${p.id}</strong> @ ${p.ip} ` +
+          `<span style="opacity:.7">(seen ${p.lastSeenMs} ms ago)</span>`;
+        peerList.appendChild(li);
+      }
+    }
+
+    function formatMs(ms) {
+      if (typeof ms !== "number") return "?";
+      const s = Math.floor(ms / 1000);
+      if (s < 60) return `${s}s`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ${s % 60}s`;
+      const h = Math.floor(m / 60);
+      return `${h}h ${m % 60}m`;
+    }
   </script>
 </body>
 </html>

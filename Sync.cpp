@@ -153,6 +153,34 @@ void syncPoll() {
   }
 }
 
+void syncWritePeersJson(WiFiClient& client) {
+  unsigned long now = millis();
+  client.print("{\"self\":{\"id\":");
+  client.print(nodeId);
+  client.print(",\"ip\":\"");
+  client.print(WiFi.localIP());
+  client.print("\",\"uptimeMs\":");
+  client.print(now);
+  client.print("},\"peers\":[");
+  bool first = true;
+  for (int i = 0; i < peerCount; i++) {
+    unsigned long age = now - peers[i].lastSeenMs;
+    if (age >= PEER_ALIVE_MS) continue;
+    if (!first) client.print(",");
+    first = false;
+    client.print("{\"id\":");
+    client.print(peers[i].id);
+    client.print(",\"ip\":\"");
+    client.print(peers[i].ip);
+    client.print("\",\"lastSeenMs\":");
+    client.print(age);
+    client.print(",\"uptimeMs\":");
+    client.print(peers[i].lastUptimeMs);
+    client.print("}");
+  }
+  client.print("]}");
+}
+
 void syncWritePeersHtml(WiFiClient& client) {
   client.print("<p>This node id: ");
   client.print(nodeId);
