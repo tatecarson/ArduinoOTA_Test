@@ -3,7 +3,11 @@
 ## Prep (once)
 - [ ] Confirm all three UNO R4 WiFi boards are on hand, plus a USB-C cable.
 - [ ] On your Mac, confirm `arduino-cli` works: `arduino-cli version`.
-- [ ] Confirm WiFi credentials in [ArduinoOTA_Test.ino](ArduinoOTA_Test.ino) match your home network (`Lucy` / `sweetsweet2017`). Edit if needed.
+- [ ] Copy the secrets template and fill it in:
+  ```bash
+  cp Secrets.h.example Secrets.h
+  ```
+  Then edit `Secrets.h` and set `WIFI_SSID`, `WIFI_PASS`, `OTA_PASSWORD`, and (optionally) `OTA_HOSTNAME` to real values. `Secrets.h` is gitignored — your credentials never get committed.
 - [ ] Compile once to verify the build is clean:
   ```bash
   arduino-cli compile --fqbn arduino:renesas_uno:unor4wifi --build-path /tmp/arduinoota-test-build .
