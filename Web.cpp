@@ -85,10 +85,13 @@ void webPoll() {
 
     if (path.startsWith("/msg?")) {
       String text = getQueryValue(path, "text");
+      String sync = getQueryValue(path, "sync");
       setMatrixMessage(text.c_str());
       Serial.print("Matrix message changed to: ");
       Serial.println(currentMessage);
-      broadcastMessage(currentMessage);
+      if (sync != "0") {
+        broadcastMessage(currentMessage);
+      }
     } else if (path == "/peers.json" || path.startsWith("/peers.json?")) {
       // CORS: only allow origins that browsers serialize as "null"
       // (file:// pages, sandboxed iframes). Tightens the previous "*" wildcard

@@ -37,6 +37,7 @@
     }
 
     input,
+    select,
     button {
       box-sizing: border-box;
       width: 100%;
@@ -45,7 +46,8 @@
       font: inherit;
     }
 
-    input {
+    input,
+    select {
       border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
       padding: 8px 10px;
       background: Canvas;
@@ -135,13 +137,16 @@
     <h1>Arduino LED Matrix</h1>
 
     <form id="message-form">
-      <label for="ip">Arduino IP address</label>
-      <input id="ip" name="ip" inputmode="decimal" autocomplete="off" value="192.168.8.138">
-
       <label for="text">Message</label>
       <input id="text" name="text" autocomplete="off" maxlength="4" value="TATE">
 
-      <button type="submit">Send To Matrix</button>
+      <label for="target">Send to</label>
+      <select id="target" name="target">
+        <option value="all">All boards</option>
+        <option value="self">Connected board only</option>
+      </select>
+
+      <button type="submit">Send Message</button>
     </form>
 
     <div class="status" id="status" role="status"></div>
@@ -149,97 +154,191 @@
 
     <section class="peers" id="peers">
       <h2>Network</h2>
-      <p class="self" id="self">Enter an Arduino IP and submit to see the cluster.</p>
+      <p class="self" id="self">Checking configured boards...</p>
       <ul id="peer-list"></ul>
-      <p class="empty" id="peer-empty" hidden>No other boards seen yet.</p>
+      <p class="empty" id="peer-empty" hidden>No boards responded yet.</p>
     </section>
   </main>
 
-  <iframe id="sender" title="Arduino request sender"></iframe>
+  <div id="senders" aria-hidden="true"></div>
 
   <script>
     const form = document.querySelector("#message-form");
-    const ipInput = document.querySelector("#ip");
     const textInput = document.querySelector("#text");
+    const targetSelect = document.querySelector("#target");
     const status = document.querySelector("#status");
-    const sender = document.querySelector("#sender");
+    const senders = document.querySelector("#senders");
     const selfEl = document.querySelector("#self");
     const peerList = document.querySelector("#peer-list");
     const peerEmpty = document.querySelector("#peer-empty");
+    const configuredBoards = [
+      "192.168.8.138",
+      "192.168.8.213",
+      "192.168.8.198"
+    ];
 
     let pollTimer = null;
-    let lastIp = "";
+    let currentBoards = configuredBoards.map((ip) => boardFromIp(ip));
+
+    renderTargets();
+    startPolling();
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
-      const ip = ipInput.value.trim();
       const text = textInput.value.trim().slice(0, 4);
 
-      if (!ip || !text) {
-        status.textContent = "Enter an IP address and a short message.";
+      if (!text) {
+        status.textContent = "Enter a short message.";
         return;
       }
 
-      const url = `http://${ip}/msg?text=${encodeURIComponent(text)}`;
-      sender.src = url;
-      status.textContent = `Sent "${text.toUpperCase()}" to ${ip}`;
-      startPolling(ip);
+      const targets = selectedTargets();
+      if (targets.length === 0) {
+        status.textContent = "No board selected.";
+        return;
+      }
+
+      sendMessage(targets, text, targetSelect.value === "all");
+      const label = targets.length === 1 ? targets[0].label : `${targets.length} boards`;
+      status.textContent = `Sent "${text.toUpperCase()}" to ${label}`;
+      refreshBoards();
     });
 
-    ipInput.addEventListener("change", () => {
-      const ip = ipInput.value.trim();
-      if (ip) startPolling(ip);
-    });
-
-    function startPolling(ip) {
-      if (ip === lastIp && pollTimer) return;
-      lastIp = ip;
+    function startPolling() {
+      if (pollTimer) return;
+      refreshBoards();
       if (pollTimer) clearInterval(pollTimer);
-      refreshPeers(ip);
-      pollTimer = setInterval(() => refreshPeers(ip), 2000);
+      pollTimer = setInterval(refreshBoards, 2000);
     }
 
-    async function refreshPeers(ip) {
+    async function refreshBoards() {
+      const results = await Promise.all(configuredBoards.map(fetchBoardStatus));
+      currentBoards = boardListFromStatuses(results);
+      renderTargets();
+      renderNetwork(results);
+    }
+
+    async function fetchBoardStatus(ip) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1200);
       try {
-        const res = await fetch(`http://${ip}/peers.json`, { cache: "no-store" });
+        const res = await fetch(`http://${ip}/peers.json`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        renderPeers(data);
+        return { ip, ok: true, data };
       } catch (err) {
-        selfEl.textContent = `Could not reach ${ip}: ${err.message}`;
-        peerList.replaceChildren();
-        peerEmpty.hidden = true;
+        return { ip, ok: false, error: err.message || "No response" };
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
-    function renderPeers(data) {
-      const self = data.self || {};
+    function boardListFromStatuses(statuses) {
+      const boards = new Map(configuredBoards.map((ip) => [ip, boardFromIp(ip)]));
+
+      for (const status of statuses) {
+        if (!status.ok) continue;
+        const self = status.data.self || {};
+        boards.set(status.ip, {
+          id: self.id ?? "?",
+          ip: status.ip,
+          label: `id ${self.id ?? "?"} @ ${status.ip}`,
+          self: false,
+          online: true
+        });
+      }
+
+      return [...boards.values()];
+    }
+
+    function boardFromIp(ip) {
+      return {
+        id: "?",
+        ip,
+        label: ip,
+        self: false,
+        online: false
+      };
+    }
+
+    function renderTargets() {
+      const previous = targetSelect.value;
+      targetSelect.replaceChildren();
+
+      const all = document.createElement("option");
+      all.value = "all";
+      all.textContent = currentBoards.length > 1 ? `All boards (${currentBoards.length})` : "All boards";
+      targetSelect.appendChild(all);
+
+      for (const board of currentBoards) {
+        const option = document.createElement("option");
+        option.value = board.ip;
+        option.textContent = `${board.self ? "Connected board" : "Board"} ${board.label}`;
+        targetSelect.appendChild(option);
+      }
+
+      if ([...targetSelect.options].some((option) => option.value === previous)) {
+        targetSelect.value = previous;
+      }
+    }
+
+    function selectedTargets() {
+      if (targetSelect.value === "all") {
+        return currentBoards;
+      }
+
+      const board = currentBoards.find((candidate) => candidate.ip === targetSelect.value);
+      if (board) return [board];
+
+      return [];
+    }
+
+    function sendMessage(targets, text, allBoards) {
+      senders.replaceChildren();
+      const sync = allBoards && targets.length === 1 ? "1" : "0";
+      for (const board of targets) {
+        const frame = document.createElement("iframe");
+        frame.title = `Send to ${board.ip}`;
+        frame.src = `http://${board.ip}/msg?text=${encodeURIComponent(text)}&sync=${sync}`;
+        senders.appendChild(frame);
+      }
+    }
+
+    function renderNetwork(statuses) {
+      const online = statuses.filter((status) => status.ok);
       selfEl.replaceChildren();
-      const selfDot = document.createElement("span");
-      selfDot.className = "dot";
-      selfEl.append(selfDot, "This board: id ");
-      const selfId = document.createElement("strong");
-      selfId.textContent = String(self.id ?? "?");
-      selfEl.append(selfId, ` @ ${String(self.ip ?? "?")} (uptime ${formatMs(self.uptimeMs)})`);
-
-      const peers = Array.isArray(data.peers) ? data.peers : [];
+      selfEl.append(`Reachable boards: ${online.length} of ${configuredBoards.length}`);
       peerList.replaceChildren();
-      peerEmpty.hidden = peers.length > 0;
+      peerEmpty.hidden = online.length > 0;
 
-      for (const p of peers) {
+      for (const status of statuses) {
         const li = document.createElement("li");
-        const stale = (typeof p.lastSeenMs === "number") && p.lastSeenMs > 1500;
         const dot = document.createElement("span");
-        dot.className = stale ? "dot stale" : "dot";
-        li.append(dot, "id ");
-        const idEl = document.createElement("strong");
-        idEl.textContent = String(p.id ?? "?");
-        li.append(idEl, ` @ ${String(p.ip ?? "?")} `);
-        const age = document.createElement("span");
-        age.style.opacity = ".7";
-        age.textContent = `(seen ${Number(p.lastSeenMs ?? 0)} ms ago)`;
-        li.append(age);
+        dot.className = status.ok ? "dot" : "dot stale";
+        li.append(dot);
+
+        if (status.ok) {
+          const self = status.data.self || {};
+          li.append("id ");
+          const idEl = document.createElement("strong");
+          idEl.textContent = String(self.id ?? "?");
+          li.append(idEl, ` @ ${status.ip} `);
+          const detail = document.createElement("span");
+          detail.style.opacity = ".7";
+          detail.textContent = `(uptime ${formatMs(self.uptimeMs)})`;
+          li.append(detail);
+        } else {
+          li.append(`${status.ip} `);
+          const detail = document.createElement("span");
+          detail.style.opacity = ".7";
+          detail.textContent = "(no response)";
+          li.append(detail);
+        }
+
         peerList.appendChild(li);
       }
     }
