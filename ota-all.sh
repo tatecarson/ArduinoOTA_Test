@@ -9,8 +9,9 @@ set -euo pipefail
 
 BOARDS=(
   192.168.8.138
-  # Add 192.168.8.139 and 192.168.8.140 here once boards #2 and #3 are
-  # flashed and have DHCP reservations on the GL.iNet router.
+  192.168.8.213
+  # Add board #3's reserved IP here once it's flashed and has a DHCP
+  # reservation on the GL.iNet router.
 )
 
 FQBN="arduino:renesas_uno:unor4wifi"
