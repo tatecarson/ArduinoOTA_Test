@@ -3,9 +3,16 @@
 #include "Display.h"
 #include "Sync.h"
 #include "Web.h"
+#include "Secrets.h"
 
-static char ssid[] = "Lucy";
-static char pass[] = "sweetsweet2017";
+// Wi-Fi and OTA credentials live in Secrets.h (gitignored).
+// See Secrets.h.example for the expected fields.
+static char ssid[] = WIFI_SSID;
+static char pass[] = WIFI_PASS;
+
+// Compile-time guard: refuse to build with an empty OTA password.
+// (sizeof of a string literal includes the trailing '\0', so > 1 means at least one char.)
+static_assert(sizeof(OTA_PASSWORD) > 1, "OTA_PASSWORD in Secrets.h must not be empty");
 
 static bool otaReady = false;
 static unsigned long lastLedTick = 0;
@@ -89,7 +96,7 @@ void setup() {
     ArduinoOTA.onStart(onOtaStart);
     ArduinoOTA.beforeApply(onOtaApply);
     ArduinoOTA.onError(onOtaError);
-    ArduinoOTA.begin(WiFi.localIP(), "ArduinoOTA_Test", "password", InternalStorage);
+    ArduinoOTA.begin(WiFi.localIP(), OTA_HOSTNAME, OTA_PASSWORD, InternalStorage);
     webBegin();
     syncBegin();
     otaReady = true;

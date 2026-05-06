@@ -1,0 +1,12 @@
+# Local secrets — do not commit. Copy Secrets.h.example to Secrets.h and fill in.
+Secrets.h
+
+# macOS noise
+.DS_Store
+
+# Build artifacts (we use /tmp/arduinoota-test-build, but just in case)
+build/
+*.bin
+*.elf
+*.hex
+*.map
