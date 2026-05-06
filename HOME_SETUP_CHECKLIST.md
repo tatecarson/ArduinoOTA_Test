@@ -14,9 +14,10 @@
   ```
 
 ## Board #1 (the one already running OTA)
-- [ ] OTA upload the new sketch:
+- [ ] OTA upload the new sketch (export `OTA_PASSWORD` first to match the value in `Secrets.h`):
   ```bash
-  curl --user arduino:password --data-binary @/tmp/arduinoota-test-build/ArduinoOTA_Test.ino.bin http://192.168.0.102:65280/sketch
+  export OTA_PASSWORD='your-ota-password-here'
+  curl --user "arduino:$OTA_PASSWORD" --data-binary @/tmp/arduinoota-test-build/ArduinoOTA_Test.ino.bin http://192.168.0.102:65280/sketch
   ```
   (Replace IP if Serial showed a different one. Close Serial Monitor before uploading.)
 - [ ] Plug USB, open Serial at `115200`. Confirm:
@@ -69,7 +70,7 @@
 - [ ] To flash just one board (e.g. after a code experiment), still use:
   ```bash
   arduino-cli compile --fqbn arduino:renesas_uno:unor4wifi --build-path /tmp/arduinoota-test-build .
-  curl --user arduino:password --data-binary @/tmp/arduinoota-test-build/ArduinoOTA_Test.ino.bin http://<BOARD_IP>:65280/sketch
+  curl --user "arduino:$OTA_PASSWORD" --data-binary @/tmp/arduinoota-test-build/ArduinoOTA_Test.ino.bin http://<BOARD_IP>:65280/sketch
   ```
 
 ## If something goes wrong

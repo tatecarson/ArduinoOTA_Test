@@ -208,27 +208,38 @@
         renderPeers(data);
       } catch (err) {
         selfEl.textContent = `Could not reach ${ip}: ${err.message}`;
-        peerList.innerHTML = "";
+        peerList.replaceChildren();
         peerEmpty.hidden = true;
       }
     }
 
     function renderPeers(data) {
       const self = data.self || {};
-      selfEl.innerHTML =
-        `<span class="dot"></span>This board: id <strong>${self.id}</strong> @ ${self.ip} (uptime ${formatMs(self.uptimeMs)})`;
+      selfEl.replaceChildren();
+      const selfDot = document.createElement("span");
+      selfDot.className = "dot";
+      selfEl.append(selfDot, "This board: id ");
+      const selfId = document.createElement("strong");
+      selfId.textContent = String(self.id ?? "?");
+      selfEl.append(selfId, ` @ ${String(self.ip ?? "?")} (uptime ${formatMs(self.uptimeMs)})`);
 
       const peers = Array.isArray(data.peers) ? data.peers : [];
-      peerList.innerHTML = "";
+      peerList.replaceChildren();
       peerEmpty.hidden = peers.length > 0;
 
       for (const p of peers) {
         const li = document.createElement("li");
-        const stale = p.lastSeenMs > 1500;
-        li.innerHTML =
-          `<span class="dot${stale ? " stale" : ""}"></span>` +
-          `id <strong>${p.id}</strong> @ ${p.ip} ` +
-          `<span style="opacity:.7">(seen ${p.lastSeenMs} ms ago)</span>`;
+        const stale = (typeof p.lastSeenMs === "number") && p.lastSeenMs > 1500;
+        const dot = document.createElement("span");
+        dot.className = stale ? "dot stale" : "dot";
+        li.append(dot, "id ");
+        const idEl = document.createElement("strong");
+        idEl.textContent = String(p.id ?? "?");
+        li.append(idEl, ` @ ${String(p.ip ?? "?")} `);
+        const age = document.createElement("span");
+        age.style.opacity = ".7";
+        age.textContent = `(seen ${Number(p.lastSeenMs ?? 0)} ms ago)`;
+        li.append(age);
         peerList.appendChild(li);
       }
     }

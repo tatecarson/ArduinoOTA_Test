@@ -10,6 +10,10 @@
 static char ssid[] = WIFI_SSID;
 static char pass[] = WIFI_PASS;
 
+// Compile-time guard: refuse to build with an empty OTA password.
+// (sizeof of a string literal includes the trailing '\0', so > 1 means at least one char.)
+static_assert(sizeof(OTA_PASSWORD) > 1, "OTA_PASSWORD in Secrets.h must not be empty");
+
 static bool otaReady = false;
 static unsigned long lastLedTick = 0;
 static bool ledState = LOW;

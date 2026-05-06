@@ -90,10 +90,15 @@ void webPoll() {
       Serial.println(currentMessage);
       broadcastMessage(currentMessage);
     } else if (path == "/peers.json" || path.startsWith("/peers.json?")) {
+      // CORS: only allow origins that browsers serialize as "null"
+      // (file:// pages, sandboxed iframes). Tightens the previous "*" wildcard
+      // so a random website on the LAN cannot fingerprint the cluster.
+      // The bundled led_message_controller.html is opened from disk, so its
+      // Origin header is "null" and the page works under this policy.
       client.println("HTTP/1.1 200 OK");
       client.println("Connection: close");
       client.println("Content-Type: application/json");
-      client.println("Access-Control-Allow-Origin: *");
+      client.println("Access-Control-Allow-Origin: null");
       client.println();
       syncWritePeersJson(client);
       delay(5);
